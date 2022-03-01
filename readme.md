@@ -25,7 +25,7 @@ signalizácia prebieha.
 ```
 
 ## Implementácia knižnice sipfullproxy.py
-Po importovaní knižnice 
+Po importovaní knižnice inicializujem premennú IP ktorou definujem adresu proxy serveru. Následne nastavím konfiguráciu logovania, vypíšem info o spustení serveru a jeho adresu. Po výpisoch nastavím globálne premenné v knižnici a spustím server.
 ``` python
 import sipfullproxy
 from sipfullproxy import *
@@ -41,29 +41,29 @@ sipfullproxy.server.serve_forever()
 ```
 
 ## Registrácia účastníka
-Registrácia účastníka je založená na jednoduchej výmene kde klient poziada o registráciu paketom REGISTER a server odpovedá paketom 200. V tomto prípade bol paket upravený aby obsahoval informácie o tom k comu došlo na serveri.
+Registrácia účastníka je založená na jednoduchej výmene kde klient požiada o registráciu paketom REGISTER a server odpovedá paketom 200. [V tomto prípade bol paket upravený aby obsahoval informácie o tom k čomu došlo na serveri.](##Upravovanie-kódov)
 
 
-![PCAP registracia](/img/Registracia.png)
+![PCAP registracia](https://raw.githubusercontent.com/ImMuffin/pysip/master/img/Registracia.png)
 
 V prvej výmene sa vráti odpoveď "Klient bol úspešne registrovaný!"
 
-![PCAP opakovana registracia](/img/Opakovana_registracia.png)
+![PCAP opakovana registracia](https://raw.githubusercontent.com/ImMuffin/pysip/master/img/Opakovana_registracia.png)
 
-V druhej výmene bol klient uz registrovany, teda sa vráti odpoveď "Klient už bol registrovaný!"
+V druhej výmene bol klient už registrovany, teda sa vráti odpoveď "Klient už bol registrovaný!"
 
 ## Vytočenie hovoru a zvonenie na druhej strane
-Po vytočení čísla pošle volajúci na volané číslo pomocou proxy paket `INVITE`. Volaná strana na tento odpovedá zaslaním paketov `100 Trying` a `180 Ringing`. Proxy server zmení text týchto správ na "Druhá strana sa hladá." a "Druhá strana vyzváňa." ([Viac v sekcii Úprava preposielaných sip kódov](###Úprava-preposielaných-sip-kódov))
-![PCAP vytocenie a zvonenie](/img/Vyzvananie.png)
+Po vytočení čísla pošle volajúci na volané číslo pomocou proxy paket `INVITE`. Volaná strana na tento odpovedá zaslaním paketov `100 Trying` a `180 Ringing`. Proxy server zmení text týchto správ na "Druhá strana sa hľadá." a "Druhá strana vyzváňa." ([Viac v sekcii Úprava preposielaných sip kódov](###Úprava-preposielaných-sip-kódov))
+![PCAP vytocenie a zvonenie](https://raw.githubusercontent.com/ImMuffin/pysip/master/img/Vyzvananie.png)
 
 ## Prijatie hovoru druhou stranou
 Na prijatie hovoru odošle volaná strana paket `200 OK`. Volajúca strana potvrdí prijatie `200 OK` paketom `ACK`.
 
-![PCAP volanie](/img/Volanie.png)
+![PCAP volanie](https://raw.githubusercontent.com/ImMuffin/pysip/master/img/Volanie.png)
 
-Hneď po prijatí paketu `200 OK` obe strany naviažu navzájom spojenie pomocou `RTP` paketov. Tie nie sú vidideľné na prvom obrázku keďže bol nahratý na proxy serveri ktorý samotná komunikácia obchádza.
+Hneď po prijatí paketu `200 OK` obe strany naviažu navzájom spojenie pomocou `RTP` paketov. Tie nie sú viditeľné na prvom obrázku keďže bol nahratý na proxy serveri ktorý samotná komunikácia obchádza.
 
-![PCAP volanie s RTP](/img/Hovor_RTP.png)
+![PCAP volanie s RTP](https://raw.githubusercontent.com/ImMuffin/pysip/master/img/Hovor_RTP.png)
 
 Na tomto obrázku je vidno `RTP` komunikáciu ale iba jednu stranu zvyšnej komunikácie keďže bol nahrávaný na volajúcej strane.
 
@@ -71,32 +71,37 @@ Na tomto obrázku je vidno `RTP` komunikáciu ale iba jednu stranu zvyšnej komu
 K ukončeniu hovoru dochádza niekoľkými spôsobmi podľa aktuálneho stavu hovoru.
 V prípade, že ukončujeme prebiehajúci pošle strana ktorá chce hovor ukončiť paket `BYE` na ktorý druhá strana odpovie `200 OK` a hovor je ukončený.
 
-![PCAP ukončenie hovoru](/img/Volanie_zrusenie.png)
+![PCAP ukončenie hovoru](https://raw.githubusercontent.com/ImMuffin/pysip/master/img/Volanie_zrusenie.png)
 
 V prípade, že volaný odmietne hovor, odošle volajúcemu paket `603 Decline`. Volajúci na daný paket odpovie paketom `ACK`.
 
-![PCAP odmietnutie](/img/Odmietnutie.png)
+![PCAP odmietnutie](https://raw.githubusercontent.com/ImMuffin/pysip/master/img/Odmietnutie.png)
 
 Nakoniec, pokiaľ chce volajúci zrušiť hovor predtým ako ho volaný zdvihne, odošle paket `CANCEL`. Volaná strana naň odpovie paketom `200 OK`, zruší zvonenie zariadenia a odošle `487 Request terminated`. Volajúca strana potvrdí prijatie `487 Request terminated` paketom `ACK`.
 
-![PCAP zrusenie volajucim](/img/Zrusenie.png)
+![PCAP zrusenie volajucim](https://raw.githubusercontent.com/ImMuffin/pysip/master/img/Zrusenie.png)
 
 ## Konferenčný hovor
 
 Pri konferenčnom hovore dochádza k inicializácií tak ako pri klasickom hovore, až na to, že volajúci inicializuje niekoľko spojení naraz, podľa počtu účastníkov. V mojom prípade inicializuje 2 hovory zaslaním `INVITE` obom účastníkom. 
 
-![PCAP zrusenie volajucim](img/Konferencny_hovor.png)
+![PCAP zrusenie volajucim](https://raw.githubusercontent.com/ImMuffin/pysip/master/img/Konferencny_hovor.png)
 ## Presmerovanie
 
 Hovor sa dá presmerovať po jeho prijatí. K samotnému presmerovaniu dochádza pomocou paketu `REFER`. Po jeho prijatí druhá strana odpovedá paketom `202 Accepted`. Následne posiela `INVITE` tretej strane a nadväzuje s ňou spojenie ako pri bežnom hovore.
 
-![PCAP zrusenie volajucim](img/Presmerovanie.png)
+![PCAP zrusenie volajucim](https://raw.githubusercontent.com/ImMuffin/pysip/master/img/Presmerovanie.png)
 
 ## Videohovor
 
-Pri videohovore 
+Po naviazaní bežného hovoru sa dá spustiť videohovor. Pri spustení videohovoru incializátor odošle nový `INVITE` paket na ktorý druhá strana odpovie paketom `100 Trying`. Po akceptovaní videohovoru na druhej strane sa odošle paket `OK 200` čím sa spustí videohovor.
+
+![PCAP zrusenie volajucim](https://raw.githubusercontent.com/ImMuffin/pysip/master/img/Videohovor.png)
+
+---
 
 ## Denník hovorov
+Denník hovorov som implementoval pomocou novej `class`. Táto sa inicializuje na začiatku každého hovoru a obsahuje adresy oboch strán, čas inicializácie, časy zodvihnutia, ukončenia a dĺžku hovoru. Pri vytvorení sa nastaví `status = 'RINGING'` čo je prvé štádium hovoru.
 ``` python
 class call:
     address_list = []
@@ -113,7 +118,7 @@ class call:
 
 call_list = []
 ```
-
+Inicializácia nového hovoru, nastavenie IP adries, pridanie hovoru do zoznamu a zápis do logu.
 ``` python
 ...
 new_call = call(origin, destination)
@@ -121,21 +126,7 @@ logging.info("Klient %s vola klientovi %s." % (new_call.source_address, new_call
 call_list.append(new_call)
 ...
 ```
-
-``` python
-...
-for c in call_list:
-if (destination in c.address_list) and (origin in c.address_list) and c.status == "CALLING":
-    c.status = "ENDED"
-    c.end_time = time.time()
-    c.duration = round(c.end_time - c.start_time)
-    logging.info("Hovor medzi %s a %s bol ukonceny. Trval: %s sekund." % (c.destination_address, c.source_address, c.duration))
-elif (destination in c.address_list) and (origin in c.address_list) and c.status == "RINGING":
-    c.status = "CANCELED"
-    logging.info("Klient %s zrusil hovor s %s." % (c.source_address, c.destination_address))
-...
-```
-
+Po zodvihnutí (teda prijatí kódu `200`) sa prezre zoznam hovorov. Pokiaľ sa v ňom nachádza hovor medzi danými účastníkmi nastaví sa na `CALLING`, nastaví čas zdvihnutia hovoru a urobí sa zápis do logu. V prípade, že server dostane kód `603` alebo `486` a hovor medzi danými účastníkmi iba zvoní, nastaví sa na `DECLINED` a urobí sa zápis do logu. S takýmto hovorom sa ďalej nič nerobí, keďže bol ukončený.
 ``` python
 ...
 if code == "200":
@@ -152,7 +143,21 @@ if code == "603" or code == "486":
             logging.info("Klient %s odmietol hovor od %s" % (c.destination_address, c.source_address))
 ...
 ```
-### V
+Pokiaľ server dostane ukončujúci paket `BYE`, nastaví hovor na status `ENDED`, spraví zápis do logu pričom vypočíta dĺžku hovoru pomocou času zdvihnutia a ukončenia. Pokiaľ volajúci ukončí hovor pred zdvihnutím, status sa nastaví na `CANCELED` a urobí sa zápis do logu.
+``` python
+...
+for c in call_list:
+if (destination in c.address_list) and (origin in c.address_list) and c.status == "CALLING":
+    c.status = "ENDED"
+    c.end_time = time.time()
+    c.duration = round(c.end_time - c.start_time)
+    logging.info("Hovor medzi %s a %s bol ukonceny. Trval: %s sekund." % (c.destination_address, c.source_address, c.duration))
+elif (destination in c.address_list) and (origin in c.address_list) and c.status == "RINGING":
+    c.status = "CANCELED"
+    logging.info("Klient %s zrusil hovor s %s." % (c.source_address, c.destination_address))
+...
+```
+### Ukážka logu hovorov
 ``` log
 15:32:40:INFO:Sip proxy bolo spustene: Tue, 01 Mar 2022 15:32:40 
 15:32:40:INFO:Serverova adresa je nastavena na 192.168.100.2
@@ -172,6 +177,7 @@ if code == "603" or code == "486":
 15:33:56:INFO:Klient 002@192.168.100.2 zrusil hovor s 005@192.168.100.2.
 ```
 ## Upravovanie kódov
+V kóde upravujem SIP kódy na dvoch miestach. Prvým je úprava kódov ktoré server posiela, tieto obsahujú spresňujúcu správu k danému kódu. Taktiež upravujem kódy preposielané serverom tak aby bol ich text po slovensky.
 ### Úprava preposielaných sip kódov
 ``` python
 ...
@@ -192,6 +198,7 @@ socket.sendto(text.encode("utf-8"),claddr)
 ...
 ```
 ### Úprava generovaných kódov
+Pri odosielaní upravených kódov sa robia zápisy do logu pre lepšie sledovanie užívateľských požiadaviek.
 ``` python
 ...
     else:
