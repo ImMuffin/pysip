@@ -374,7 +374,6 @@ class UDPHandler(socketserver.BaseRequestHandler):
                     data[0] = "SIP/2.0 486 Ucastnik je obsadeny."    
                 text = "\r\n".join(data)
                 socket.sendto(text.encode("utf-8"),claddr)
-                print(data[0])
                 # spracovanie denniku hovorov
                 if code == "200":
                     for c in call_list:
