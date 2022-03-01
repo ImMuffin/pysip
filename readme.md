@@ -1,4 +1,5 @@
 # SIP Proxy Ondrej Ambruš
+GIT: https://github.com/ImMuffin/pysip
 ## Zadanie
 ```
 Rozsah povinných funkcionalít:
@@ -23,9 +24,77 @@ ho pomocou tcpdump alebo Wireshark, a v primeranom rozsahu vysvetliť cvičiacem
 signalizácia prebieha.
 ```
 
-## Registrácia účastníka
-Registrácia účastníka je založená na jednoduchej výmene 
+## Implementácia knižnice sipfullproxy.py
+Po importovaní knižnice 
+``` python
+import sipfullproxy
+from sipfullproxy import *
+IP = '192.168.100.2'
 
+logging.basicConfig(format='%(asctime)s:%(levelname)s:%(message)s',filename='proxy.log',level=logging.INFO,datefmt='%H:%M:%S')
+logging.info(time.strftime("Sip proxy bolo spustene: %a, %d %b %Y %H:%M:%S ", time.localtime()))
+logging.info("Serverova adresa je nastavena na %s" % IP)
+sipfullproxy.recordroute = "Record-Route: <sip:%s:%d;lr>" % (IP,PORT)
+sipfullproxy.topvia = "Via: SIP/2.0/UDP %s:%d" % (IP,PORT)
+sipfullproxy.server = socketserver.UDPServer((HOST, PORT), UDPHandler)
+sipfullproxy.server.serve_forever()
+```
+
+## Registrácia účastníka
+Registrácia účastníka je založená na jednoduchej výmene kde klient poziada o registráciu paketom REGISTER a server odpovedá paketom 200. V tomto prípade bol paket upravený aby obsahoval informácie o tom k comu došlo na serveri.
+
+
+![PCAP registracia](/img/Registracia.png)
+
+V prvej výmene sa vráti odpoveď "Klient bol úspešne registrovaný!"
+
+![PCAP opakovana registracia](/img/Opakovana_registracia.png)
+
+V druhej výmene bol klient uz registrovany, teda sa vráti odpoveď "Klient už bol registrovaný!"
+
+## Vytočenie hovoru a zvonenie na druhej strane
+Po vytočení čísla pošle volajúci na volané číslo pomocou proxy paket `INVITE`. Volaná strana na tento odpovedá zaslaním paketov `100 Trying` a `180 Ringing`. Proxy server zmení text týchto správ na "Druhá strana sa hladá." a "Druhá strana vyzváňa." ([Viac v sekcii Úprava preposielaných sip kódov](###Úprava-preposielaných-sip-kódov))
+![PCAP vytocenie a zvonenie](/img/Vyzvananie.png)
+
+## Prijatie hovoru druhou stranou
+Na prijatie hovoru odošle volaná strana paket `200 OK`. Volajúca strana potvrdí prijatie `200 OK` paketom `ACK`.
+
+![PCAP volanie](/img/Volanie.png)
+
+Hneď po prijatí paketu `200 OK` obe strany naviažu navzájom spojenie pomocou `RTP` paketov. Tie nie sú vidideľné na prvom obrázku keďže bol nahratý na proxy serveri ktorý samotná komunikácia obchádza.
+
+![PCAP volanie s RTP](/img/Hovor_RTP.png)
+
+Na tomto obrázku je vidno `RTP` komunikáciu ale iba jednu stranu zvyšnej komunikácie keďže bol nahrávaný na volajúcej strane.
+
+## Ukončenie hlasového hovoru
+K ukončeniu hovoru dochádza niekoľkými spôsobmi podľa aktuálneho stavu hovoru.
+V prípade, že ukončujeme prebiehajúci pošle strana ktorá chce hovor ukončiť paket `BYE` na ktorý druhá strana odpovie `200 OK` a hovor je ukončený.
+
+![PCAP ukončenie hovoru](/img/Volanie_zrusenie.png)
+
+V prípade, že volaný odmietne hovor, odošle volajúcemu paket `603 Decline`. Volajúci na daný paket odpovie paketom `ACK`.
+
+![PCAP odmietnutie](/img/Odmietnutie.png)
+
+Nakoniec, pokiaľ chce volajúci zrušiť hovor predtým ako ho volaný zdvihne, odošle paket `CANCEL`. Volaná strana naň odpovie paketom `200 OK`, zruší zvonenie zariadenia a odošle `487 Request terminated`. Volajúca strana potvrdí prijatie `487 Request terminated` paketom `ACK`.
+
+![PCAP zrusenie volajucim](/img/Zrusenie.png)
+
+## Konferenčný hovor
+
+Pri konferenčnom hovore dochádza k inicializácií tak ako pri klasickom hovore, až na to, že volajúci inicializuje niekoľko spojení naraz, podľa počtu účastníkov. V mojom prípade inicializuje 2 hovory zaslaním `INVITE` obom účastníkom. 
+
+![PCAP zrusenie volajucim](img/Konferencny_hovor.png)
+## Presmerovanie
+
+Hovor sa dá presmerovať po jeho prijatí. K samotnému presmerovaniu dochádza pomocou paketu `REFER`. Po jeho prijatí druhá strana odpovedá paketom `202 Accepted`. Následne posiela `INVITE` tretej strane a nadväzuje s ňou spojenie ako pri bežnom hovore.
+
+![PCAP zrusenie volajucim](img/Presmerovanie.png)
+
+## Videohovor
+
+Pri videohovore 
 
 ## Denník hovorov
 ``` python
@@ -84,7 +153,7 @@ if code == "603" or code == "486":
 ...
 ```
 ### V
-``` json
+``` log
 15:32:40:INFO:Sip proxy bolo spustene: Tue, 01 Mar 2022 15:32:40 
 15:32:40:INFO:Serverova adresa je nastavena na 192.168.100.2
 15:32:48:WARNING:Neregistrovana adresa '002@192.168.100.2' sa pokusila uskutocnit hovor!
