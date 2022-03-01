@@ -70,6 +70,21 @@ recordroute = ""
 topvia = ""
 registrar = {}
 
+class call:
+    address_list = []
+    start_time = 0
+    end_time = 0
+    duration = 0
+    def __init__(self, source, destination):
+        self.source_address = source
+        self.destination_address = destination
+        self.address_list.append(self.source_address)
+        self.address_list.append(self.destination_address)
+        self.init_time = time.localtime()
+        self.status = 'RINGING'
+
+call_list = []
+
 def hexdump( chars, sep, width ):
     while chars:
         line = chars[:width]
@@ -204,9 +219,6 @@ class UDPHandler(socketserver.BaseRequestHandler):
         data.append("")
         text = "\r\n".join(data)
         self.socket.sendto(text.encode("utf-8"),self.client_address)
-        showtime()
-        #logging.info("<<< %s" % data[0])
-        logging.debug("---\n<< server send [%d]:\n%s\n---" % (len(text),text))
         
     def processRegister(self):
         fromm = ""
@@ -253,19 +265,22 @@ class UDPHandler(socketserver.BaseRequestHandler):
         if expires == 0:
             if fromm in registrar:
                 del registrar[fromm]
-                self.sendResponse("200 Client bol uspesne registrovany!")
+                self.sendResponse("200 Klient uspesne odregistrovany!")
+                logging.info("Klient %s sa odregistroval." % fromm)
                 return
         else:
             now = int(time.time())
             validity = now + expires
 
+        if fromm in registrar:
+            self.sendResponse("200 Klient uz bol registrovany!")
+            logging.info("Klient %s uz registrovany." % fromm)
+        else:
+            self.sendResponse("200 Klient uspesne zaregistrovany!")
+            logging.info("Registroval sa novy klient %s" % fromm)
 
-        logging.info("From: %s - Contact: %s" % (fromm,contact))
-        logging.debug("Client address: %s:%s" % self.client_address)
-        logging.debug("Expires= %d" % expires)
         registrar[fromm]=[contact,self.socket,self.client_address,validity]
         self.debugRegister()
-        self.sendResponse("200 Client uspesne zaregistrovany!")
 
     def processInvite(self):
         origin = self.getOrigin()
@@ -284,7 +299,9 @@ class UDPHandler(socketserver.BaseRequestHandler):
                 data.insert(1,recordroute)
                 text = "\r\n".join(data)
                 socket.sendto(text.encode("utf-8") , claddr)
-                logging.info("Klient %s vola klientovi %s." % (origin, destination))
+                new_call = call(origin, destination)
+                logging.info("Klient %s vola klientovi %s." % (new_call.source_address, new_call.destination_address))
+                call_list.append(new_call)
             else:
                 self.sendResponse("480 Volana stanica neexistuje!")
                 logging.warning("Klient %s sa pokusal volat na neexistujuce cislo %s." % (origin, destination))
@@ -295,7 +312,6 @@ class UDPHandler(socketserver.BaseRequestHandler):
     def processAck(self):
         destination = self.getDestination()
         if len(destination) > 0:
-            logging.info("destination %s" % destination)
             if destination in registrar:
                 socket,claddr = self.getSocketInfo(destination)
                 #self.changeRequestUri()
@@ -305,9 +321,6 @@ class UDPHandler(socketserver.BaseRequestHandler):
                 data.insert(1,recordroute)
                 text = "\r\n".join(data)
                 socket.sendto(text.encode("utf-8"),claddr)
-                showtime()
-                logging.info("<<< %s" % data[0])
-                logging.debug( "---\n<< server send [%d]:\n%s\n---" % (len(text),text))
 
     def processNonInvite(self):
         origin = self.getOrigin()
@@ -316,7 +329,6 @@ class UDPHandler(socketserver.BaseRequestHandler):
             return
         destination = self.getDestination()
         if len(destination) > 0:
-            logging.info("destination %s" % destination)
             if destination in registrar and self.checkValidity(destination):
                 socket,claddr = self.getSocketInfo(destination)
                 #self.changeRequestUri()
@@ -325,7 +337,17 @@ class UDPHandler(socketserver.BaseRequestHandler):
                 #insert Record-Route
                 data.insert(1,recordroute)
                 text = "\r\n".join(data)
-                socket.sendto(text.encode("utf-8") , claddr)   
+                socket.sendto(text.encode("utf-8") , claddr)
+                for c in call_list:
+                    if (destination in c.address_list) and (origin in c.address_list) and c.status == "CALLING":
+                        c.status = "ENDED"
+                        c.end_time = time.time()
+                        c.duration = round(c.end_time - c.start_time)
+                        logging.info("Hovor medzi %s a %s bol ukonceny. Trval: %s sekund." % (c.destination_address, c.source_address, c.duration))
+                    elif (destination in c.address_list) and (origin in c.address_list) and c.status == "RINGING":
+                        c.status = "CANCELED"
+                        logging.info("Klient %s zrusil hovor s %s." % (c.source_address, c.destination_address))
+
             else:
                 self.sendResponse("406 Vasa poziadavka bola zamietnuta!")
         else:
@@ -338,11 +360,34 @@ class UDPHandler(socketserver.BaseRequestHandler):
                 socket,claddr = self.getSocketInfo(origin)
                 self.data = self.removeRouteHeader()
                 data = self.removeTopVia()
+                # uprava sip kodov
+                code = data[0].split(" ")[1]
+                if code == "100":
+                    data[0] = "SIP/2.0 100 Druha strana sa hlada."
+                elif code == "180":
+                    data[0] = "SIP/2.0 180 Druha strana vyzvana."
+                elif code == "603":
+                    data[0] = "SIP/2.0 603 Hovor bol odmietnuty."
+                elif code == "487":
+                    data[0] = "SIP/2.0 487 Hovor bol zruseny."
+                elif code == "486":
+                    data[0] = "SIP/2.0 486 Ucastnik je obsadeny."    
                 text = "\r\n".join(data)
                 socket.sendto(text.encode("utf-8"),claddr)
-                code = data[0].split(" ")[1]
+                print(data[0])
+                # spracovanie denniku hovorov
+                if code == "200":
+                    for c in call_list:
+                        if (self.getDestination() in c.address_list) and (origin in c.address_list) and c.status == "RINGING":
+                            c.status = "CALLING"
+                            c.start_time = time.time()
+                            logging.info("Klient %s prijal hovor od %s." % (c.destination_address, c.source_address))
+                        
                 if code == "603" or code == "486":
-                    logging.info("Klient %s odmietol hovor od %s" % (self.getDestination(), origin))
+                    for c in call_list:
+                        if (self.getDestination() in c.address_list) and (origin in c.address_list) and c.status == "RINGING":
+                            c.status = "DECLINED"
+                            logging.info("Klient %s odmietol hovor od %s" % (c.destination_address, c.source_address))
                 
                 
     def processRequest(self):
