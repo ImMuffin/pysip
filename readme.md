@@ -40,6 +40,8 @@ sipfullproxy.server = socketserver.UDPServer((HOST, PORT), UDPHandler)
 sipfullproxy.server.serve_forever()
 ```
 
+Kód samotnej knižnice trebalo naportovať do Python 3. Taktiež trebalo urobiť menšie úpravy aby neboli blokované lokálne adresy a pod.
+
 ## Registrácia účastníka
 Registrácia účastníka je založená na jednoduchej výmene kde klient požiada o registráciu paketom REGISTER a server odpovedá paketom 200. [V tomto prípade bol paket upravený aby obsahoval informácie o tom k čomu došlo na serveri.](##Upravovanie-kódov)
 
@@ -85,18 +87,18 @@ Nakoniec, pokiaľ chce volajúci zrušiť hovor predtým ako ho volaný zdvihne,
 
 Pri konferenčnom hovore dochádza k inicializácií tak ako pri klasickom hovore, až na to, že volajúci inicializuje niekoľko spojení naraz, podľa počtu účastníkov. V mojom prípade inicializuje 2 hovory zaslaním `INVITE` obom účastníkom. 
 
-![PCAP zrusenie volajucim](https://raw.githubusercontent.com/ImMuffin/pysip/master/img/Konferencny_hovor.png)
+![PCAP konferencny hovor](https://raw.githubusercontent.com/ImMuffin/pysip/master/img/Konferencny_hovor.png)
 ## Presmerovanie
 
 Hovor sa dá presmerovať po jeho prijatí. K samotnému presmerovaniu dochádza pomocou paketu `REFER`. Po jeho prijatí druhá strana odpovedá paketom `202 Accepted`. Následne posiela `INVITE` tretej strane a nadväzuje s ňou spojenie ako pri bežnom hovore.
 
-![PCAP zrusenie volajucim](https://raw.githubusercontent.com/ImMuffin/pysip/master/img/Presmerovanie.png)
+![PCAP presmerovanie hovoru](https://raw.githubusercontent.com/ImMuffin/pysip/master/img/Presmerovanie.png)
 
 ## Videohovor
 
 Po naviazaní bežného hovoru sa dá spustiť videohovor. Pri spustení videohovoru incializátor odošle nový `INVITE` paket na ktorý druhá strana odpovie paketom `100 Trying`. Po akceptovaní videohovoru na druhej strane sa odošle paket `OK 200` čím sa spustí videohovor.
 
-![PCAP zrusenie volajucim](https://raw.githubusercontent.com/ImMuffin/pysip/master/img/Videohovor.png)
+![PCAP videohovor](https://raw.githubusercontent.com/ImMuffin/pysip/master/img/Videohovor.png)
 
 ---
 
